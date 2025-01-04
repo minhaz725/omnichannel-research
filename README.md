@@ -1,10 +1,8 @@
-# Research on Omnichannel Communication Analysis
+# Analysis of user experience about various communication applications and possibility of an all-in-one omnichannel communication solution
 
 ### 1. Research Objectives
-- Analyze user experiences across different communication applications
-- Evaluate privacy and security concerns
-- Assess potential for omnichannel communication solutions
-- Identify demographic factors influencing application usage
+- Evaluate the challenges, benefits, and impacts on communication efficiency, interface satisfaction, security, and privacy when users use various communication applications.
+- Evaluate whether an integrated communication application improves user experience by reducing complexity and enhancing efficiency.
 
 ### 2. Data Collection Overview
 - Survey platform: Google Forms
