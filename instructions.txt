@@ -1,0 +1,4 @@
+Open a terminal / bash in this directory. write the following
+-python -m venv survey_env
+-survey_env\Scripts\activate
+-pip install -r requirements.txt
