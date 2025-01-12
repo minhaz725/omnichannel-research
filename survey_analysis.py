@@ -1,3 +1,5 @@
+import datetime
+
 import pandas as pd
 import numpy as np
 
@@ -25,12 +27,62 @@ def map_values(column, mappings):
     return column.map(mappings)
 
 
+def handle_matrix_question(df, base_column_name):
+    """
+    Handle matrix-style questions where multiple items are rated on the same scale.
+
+    Parameters:
+    df (pandas.DataFrame): The input dataframe
+    base_column_name (str): The base name of the matrix question
+
+    Returns:
+    dict: Dictionary with each item as a key and its processed values as values
+    """
+    # Find all columns that belong to this matrix question
+    matrix_columns = [col for col in df.columns if base_column_name in col]
+
+    results = {}
+    for col in matrix_columns:
+        # Extract the specific item name (e.g., "Desktop Computer" from the full column name)
+        item_name = col.split('[')[-1].strip(']') if '[' in col else col
+
+        # Process the values using the appropriate mapping
+        if any(val in df[col].fillna('').values for val in likert_mapping.keys()):
+            results[item_name] = map_values(df[col], likert_mapping)
+        elif any(val in df[col].fillna('').values for val in frequency_mapping.keys()):
+            results[item_name] = map_values(df[col], frequency_mapping)
+        else:
+            results[item_name] = df[col]
+
+    return results
+
+
 def clean_data(df):
     cleaned_df = df.copy()
-    
-    # Remove unnecessary columns
-    cleaned_df = cleaned_df.drop(['Timestamp', '1. Your name (optional)'],  axis=1)
 
+    # Remove unnecessary columns
+    cleaned_df = cleaned_df.drop(['Timestamp', '1. Your name (optional)'], axis=1)
+
+    # Handle the device familiarity matrix question
+    device_familiarity = handle_matrix_question(
+        cleaned_df,
+        '11. How familiar are you with using the following device(s)?'
+    )
+
+    # Create a new dataframe with the processed matrix questions
+    device_familiarity_df = pd.DataFrame(device_familiarity)
+
+    # Rename columns to be more concise
+    device_familiarity_df.columns = [
+        'Desktop_familiarity',
+        'Laptop_familiarity',
+        'Phone_familiarity',
+        'Feature_phone_familiarity',
+        'Tablet_familiarity',
+        'Smartwatch_familiarity'
+    ]
+
+    # Handle other demographic columns as before
     demographics = cleaned_df[[
         '2. Your age range by generation',
         '3. Your gender',
@@ -41,11 +93,12 @@ def clean_data(df):
         '8. What is the major (e.g., Computer Science/IT, Engineering, Medical, General Science, Arts, Commerce etc.) of your study?',
         '9. Your occupation (please select all that apply)',
         '10. Which electronic device(s) do you use normally for communication with others? (please select all that apply)',
-        '11. How familiar are you with using the following device(s)? [Desktop Computer / iMac / Mac mini ]',
+
         '12. How familiar are you with using the Internet? [Your opinion]',
         '13. How is the quality of your overall Internet access according to you? [Your opinion]'
     ]].copy()
 
+    # Rename demographic columns
     demographics.columns = [
         'Age_range',
         'Gender',
@@ -56,11 +109,11 @@ def clean_data(df):
         'Major',
         'Occupation',
         'Devices',
-        'Devices_familiarity',
+
         'Internet_familiarity',
         'Internet_quality'
     ]
-    
+
     # Iterate through the columns in the demographics DataFrame and Apply value mappings to relevant columns
     for col in demographics.columns:
         if demographics[col].dtype == 'object':
@@ -69,37 +122,31 @@ def clean_data(df):
                 demographics[col] = map_values(demographics[col], likert_mapping)
         elif any(val in col_values for val in frequency_mapping.keys()):
             demographics[col] = map_values(demographics[col], frequency_mapping)
-    
-    
-    return demographics
-    # return {
-    #     'clean_data': cleaned_df,
-    #     'demographics': demographics
-    # }
 
-def generate_quality_report(df_dict):
-    report = {}
-    for name, df in df_dict.items():
-        report[name] = {
-            'missing_values': df.isnull().sum(),
-            'value_counts': {col: df[col].value_counts() for col in df.columns}
-        }
-    return report
+    # Combine demographic data with device familiarity data
+    final_df = pd.concat([demographics, device_familiarity_df], axis=1)
+
+    return final_df
+
+
+def generate_quality_report(df):
+    return {
+        'missing_values': df.isnull().sum(),
+        'value_counts': {col: df[col].value_counts() for col in df.columns}
+    }
+
 
 if __name__ == "__main__":
     df = pd.read_csv('data_v0.csv')
-    #print(df.columns)
     print("\n=== Dataset Overview ===")
     print(f"Number of responses: {len(df)}")
     print(f"Number of questions: {len(df.columns)}")
-    demographics_cleaned = clean_data(df)
-    print("\nCleaning complete. Cleaned data saved in 'cleaned' dictionary.")
-    print("\nKeys available:")
 
-    demographics_cleaned.to_csv('demographics_cleaned.csv', index=False)
+    cleaned_data = clean_data(df)
+    print("\nCleaning complete. Saving cleaned data...")
 
-    # for key in cleaned.keys():
-    #     print(f"- {key}")
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    cleaned_data.to_csv('cleaned_survey_data'+ timestamp +'.csv', index=False)
 
-    #quality_report = generate_quality_report(cleaned)
-    # print(quality_report)
+    quality_report = generate_quality_report(cleaned_data)
+    print("\nQuality report generated.")
