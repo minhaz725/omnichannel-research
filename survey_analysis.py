@@ -57,52 +57,10 @@ def handle_matrix_question(df, base_column_name):
 
     return results
 
+def raname_columns(df):
+    renamed_df = df.copy()
 
-def clean_data(df):
-    cleaned_df = df.copy()
-
-    # Remove unnecessary columns
-    cleaned_df = cleaned_df.drop(['Timestamp', '1. Your name (optional)'], axis=1)
-
-    # Handle the device familiarity matrix question
-    device_familiarity = handle_matrix_question(
-        cleaned_df,
-        '11. How familiar are you with using the following device(s)?'
-    )
-
-    # Create a new dataframe with the processed matrix questions
-    device_familiarity_df = pd.DataFrame(device_familiarity)
-
-    # Rename columns to be more concise
-    device_familiarity_df.columns = [
-        'Desktop_familiarity',
-        'Laptop_familiarity',
-        'Phone_familiarity',
-        'Feature_phone_familiarity',
-        'Tablet_familiarity',
-        'Smartwatch_familiarity'
-    ]
-
-    # Handle other demographic columns as before
-    demographics = cleaned_df[[
-        '2. Your age range by generation',
-        '3. Your gender',
-        '4. Language(s) you speak (please select all that apply)',
-        '5. Country you live in',
-        '6. Your nationality',
-        '7. Your highest educational qualification (please select only one option)',
-        '8. What is the major (e.g., Computer Science/IT, Engineering, Medical, General Science, Arts, Commerce etc.) of your study?',
-        '9. Your occupation (please select all that apply)',
-        '10. Which electronic device(s) do you use normally for communication with others? (please select all that apply)',
-
-        '12. How familiar are you with using the Internet? [Your opinion]',
-        '13. How is the quality of your overall Internet access according to you? [Your opinion]'
-    ]].copy()
-
-    # Rename demographic columns
-    standardized_names = [
-        'ID_',
-        'timestamp',
+    short_names = [
         'name',
         'age_generation',
         'gender',
@@ -394,33 +352,71 @@ def clean_data(df):
     current_std_name_idx = 0
 
     # Sort columns by question number to ensure correct mapping
-    sorted_columns = sorted(cleaned_df.columns,
+    sorted_columns = sorted(renamed_df.columns,
                             key=lambda x: (int(get_question_number(x).split('.')[0])
                                            if get_question_number(x) else float('inf')))
 
+
     # Create mapping for each column
     for col in sorted_columns:
-        if current_std_name_idx < len(standardized_names):
-            column_mapping[col] = standardized_names[current_std_name_idx]
+        if current_std_name_idx < len(short_names):
+            column_mapping[col] = short_names[current_std_name_idx]
             current_std_name_idx += 1
 
     # Rename all columns using the mapping
-    cleaned_df = cleaned_df.rename(columns=column_mapping)
+    renamed_df = renamed_df.rename(columns=column_mapping)
+
+    return renamed_df
+
+def clean_data(df):
+    cleaned_df = df.copy()
+
+    # Remove unnecessary columns
+    # cleaned_df = cleaned_df.drop(['Timestamp', '1. Your name (optional)'], axis=1)
+
+    # Handle the device familiarity matrix question
+    device_familiarity = handle_matrix_question(
+        cleaned_df,
+        '11. How familiar are you with using the following device(s)?'
+    )
+
+    # Create a new dataframe with the processed matrix questions
+    # device_familiarity_df = pd.DataFrame(device_familiarity)
+
+
+    # Handle other demographic columns as before
+    # demographics = cleaned_df[[
+    #     '2. Your age range by generation',
+    #     '3. Your gender',
+    #     '4. Language(s) you speak (please select all that apply)',
+    #     '5. Country you live in',
+    #     '6. Your nationality',
+    #     '7. Your highest educational qualification (please select only one option)',
+    #     '8. What is the major (e.g., Computer Science/IT, Engineering, Medical, General Science, Arts, Commerce etc.) of your study?',
+    #     '9. Your occupation (please select all that apply)',
+    #     '10. Which electronic device(s) do you use normally for communication with others? (please select all that apply)',
+    #
+    #     '12. How familiar are you with using the Internet? [Your opinion]',
+    #     '13. How is the quality of your overall Internet access according to you? [Your opinion]'
+    # ]].copy()
+
+
+    # for orig, new in column_mapping.items():
+    #     print(f"Original: {orig:<80} New: {new}")
 
     # Iterate through the columns in the demographics DataFrame and Apply value mappings to relevant columns
-    for col in cleaned_df.columns:
-        if cleaned_df[col].dtype == 'object':
-            col_values = cleaned_df[col].fillna('').values
-            if any(val in col_values for val in likert_mapping.keys()):
-                cleaned_df[col] = map_values(cleaned_df[col], likert_mapping)
-            elif any(val in col_values for val in frequency_mapping.keys()):
-                cleaned_df[col] = map_values(cleaned_df[col], frequency_mapping)
+    # for col in cleaned_df.columns:
+    #     if cleaned_df[col].dtype == 'object':
+    #         col_values = cleaned_df[col].fillna('').values
+    #         if any(val in col_values for val in likert_mapping.keys()):
+    #             cleaned_df[col] = map_values(cleaned_df[col], likert_mapping)
+    #         elif any(val in col_values for val in frequency_mapping.keys()):
+    #             cleaned_df[col] = map_values(cleaned_df[col], frequency_mapping)
 
     # Combine demographic data with device familiarity data
-    final_df = pd.concat([demographics, device_familiarity_df], axis=1)
+    final_df = pd.concat([cleaned_df], axis=1)
 
     return final_df
-
 
 def generate_quality_report(df):
     return {
@@ -432,16 +428,20 @@ def generate_quality_report(df):
 if __name__ == "__main__":
     # xlsx = pd.ExcelFile('data_v0.xlsx')
     # print(xlsx.sheet_names)
-    raw_df = pd.read_excel('data_v0.xlsx', sheet_name='Raw')
-    print("\n=== Dataset Overview ===")
-    # print(f"Number of responses: {len(df)}")
-    # print(f"Number of questions: {len(df.columns)}")
+    raw_df = pd.read_excel('data_v1.xlsx', sheet_name='Demographic')
+    print("\n=== Raw Dataset Overview ===")
+    print(f"Number of responses: {len(raw_df)}")
+    print(f"Number of questions: {len(raw_df.columns)}")
 
-    cleaned_data = clean_data(raw_df)
+    cleaned_data = raname_columns(raw_df)
     print("\nCleaning complete. Saving cleaned data...")
 
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    cleaned_data.to_csv('cleaned_survey_data'+ timestamp +'.csv', index=False)
+    cleaned_data.to_excel('cleaned_survey_data'+ timestamp +'.xlsx', index=False)
+
+    print("\n=== Cleaned Dataset Overview ===")
+    print(f"Number of responses: {len(cleaned_data)}")
+    print(f"Number of questions: {len(cleaned_data.columns)}")
 
     quality_report = generate_quality_report(cleaned_data)
     print("\nQuality report generated.")
