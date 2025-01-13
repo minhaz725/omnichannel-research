@@ -6,11 +6,11 @@ import re
 
 # Standardize values for Likert scales
 likert_mapping = {
-    'Very satisfied': 5, 'Very good': 5, 'Strongly agree': 5, 'Very concerned': 5, 'Very familiar': 5,
-    'Satisfied': 4, 'Good': 4, 'Agree': 4, 'Concerned': 4, 'Familiar': 4,
-    'Neither satisfied nor dissatisfied': 3, 'Acceptable': 3, 'Neutral': 3, 'Somewhat familiar': 3,
-    'Dissatisfied': 2, 'Poor': 2, 'Disagree': 2, 'Unconcerned': 2, 'Unfamiliar': 2,
-    'Very dissatisfied': 1, 'Very poor': 1, 'Strongly disagree': 1, 'Very unconcerned': 1, 'Very unfamiliar': 1,
+    'Very satisfied': 5, 'Very good': 5, 'Strongly agree': 5, 'Very concerned': 5, 'Very familiar': 5, 'Always': 5, 'Very likely' : 5,
+    'Satisfied': 4, 'Good': 4, 'Agree': 4, 'Concerned': 4, 'Familiar': 4, 'Often' : 4, 'Likely' : 4,
+    'Neither satisfied nor dissatisfied': 3, 'Acceptable': 3, 'Neutral': 3, 'Somewhat familiar': 3, 'Sometimes': 3, 'Normal' :3,
+    'Dissatisfied': 2, 'Poor': 2, 'Disagree': 2, 'Unconcerned': 2, 'Unfamiliar': 2, 'Rarely': 2, 'Unlikely' : 2,
+    'Very dissatisfied': 1, 'Very poor': 1, 'Strongly disagree': 1, 'Very unconcerned': 1, 'Very unfamiliar': 1, 'Never': 1, 'Very unlikely' : 1,
     'Not applicable': np.nan
 }
 
@@ -28,22 +28,20 @@ def map_values(column, mappings):
     return column.map(mappings)
 
 
-def handle_matrix_question(df, base_column_name):
+def handle_matrix_questions(df):
     """
-    Handle matrix-style questions where multiple items are rated on the same scale.
+    Handle all matrix-style questions where multiple items are rated on the same scale.
 
     Parameters:
     df (pandas.DataFrame): The input dataframe
-    base_column_name (str): The base name of the matrix question
+    likert_mapping (dict): Mapping for Likert scale values
+    frequency_mapping (dict): Mapping for frequency scale values
 
     Returns:
     dict: Dictionary with each item as a key and its processed values as values
     """
-    # Find all columns that belong to this matrix question
-    matrix_columns = [col for col in df.columns if base_column_name in col]
-
     results = {}
-    for col in matrix_columns:
+    for col in df.columns:
         # Extract the specific item name (e.g., "Desktop Computer" from the full column name)
         item_name = col.split('[')[-1].strip(']') if '[' in col else col
 
@@ -369,55 +367,30 @@ def raname_columns(df, col_start_idx):
 
     return renamed_df
 
-def clean_data(df):
+def replace_likert_values(df):
     cleaned_df = df.copy()
 
     # Remove unnecessary columns
-    # cleaned_df = cleaned_df.drop(['Timestamp', '1. Your name (optional)'], axis=1)
+    # cleaned_df = cleaned_df.drop(['Timestamp', '1. name'], axis=1)
 
     # Handle the device familiarity matrix question
-    device_familiarity = handle_matrix_question(
-        cleaned_df,
-        '11. How familiar are you with using the following device(s)?'
-    )
+    # todo: do we need this
+    # todo: handle ; or , separated values
+    matrix_vals = handle_matrix_questions(cleaned_df)
 
-    # Create a new dataframe with the processed matrix questions
-    # device_familiarity_df = pd.DataFrame(device_familiarity)
-
-
-    # Handle other demographic columns as before
-    # demographics = cleaned_df[[
-    #     '2. Your age range by generation',
-    #     '3. Your gender',
-    #     '4. Language(s) you speak (please select all that apply)',
-    #     '5. Country you live in',
-    #     '6. Your nationality',
-    #     '7. Your highest educational qualification (please select only one option)',
-    #     '8. What is the major (e.g., Computer Science/IT, Engineering, Medical, General Science, Arts, Commerce etc.) of your study?',
-    #     '9. Your occupation (please select all that apply)',
-    #     '10. Which electronic device(s) do you use normally for communication with others? (please select all that apply)',
-    #
-    #     '12. How familiar are you with using the Internet? [Your opinion]',
-    #     '13. How is the quality of your overall Internet access according to you? [Your opinion]'
-    # ]].copy()
-
-
-    # for orig, new in column_mapping.items():
-    #     print(f"Original: {orig:<80} New: {new}")
 
     # Iterate through the columns in the demographics DataFrame and Apply value mappings to relevant columns
-    # for col in cleaned_df.columns:
-    #     if cleaned_df[col].dtype == 'object':
-    #         col_values = cleaned_df[col].fillna('').values
-    #         if any(val in col_values for val in likert_mapping.keys()):
-    #             cleaned_df[col] = map_values(cleaned_df[col], likert_mapping)
-    #         elif any(val in col_values for val in frequency_mapping.keys()):
-    #             cleaned_df[col] = map_values(cleaned_df[col], frequency_mapping)
+    for col in cleaned_df.columns:
+        if cleaned_df[col].dtype == 'object':
+            col_values = cleaned_df[col].fillna('').values
+            if any(val in col_values for val in likert_mapping.keys()):
+                cleaned_df[col] = map_values(cleaned_df[col], likert_mapping)
+            elif any(val in col_values for val in frequency_mapping.keys()):
+                cleaned_df[col] = map_values(cleaned_df[col], frequency_mapping)
 
     # Combine demographic data with device familiarity data
-    final_df = pd.concat([cleaned_df], axis=1)
-
-    return final_df
+    # final_df = pd.concat([cleaned_df], axis=1)
+    return cleaned_df
 
 def generate_quality_report(df):
     return {
@@ -454,6 +427,12 @@ if __name__ == "__main__":
         dm_cleaned_data.to_excel(writer, sheet_name='Demographic_Cleaned', index=False)
         qn_cleaned_data.to_excel(writer, sheet_name='Quantitative_Cleaned', index=False)
         # quality_df.to_excel(writer, sheet_name='Quality_Report', index=False)
+
+    quantitative_cleaned_df = pd.read_excel(input_file, sheet_name='Quantitative_Cleaned')
+    likert_df = replace_likert_values(quantitative_cleaned_df)
+
+    with pd.ExcelWriter(input_file, mode='a', engine='openpyxl', if_sheet_exists='replace') as writer:
+        likert_df.to_excel(writer, sheet_name='Quantitative_Likert', index=False)
 
     # quality_report = generate_quality_report(cleaned_data)
     # quality_df = pd.DataFrame(quality_report.items(), columns=['Metric', 'Value'])
