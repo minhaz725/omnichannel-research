@@ -28,33 +28,6 @@ def map_values(column, mappings):
     return column.map(mappings)
 
 
-def handle_matrix_questions(df):
-    """
-    Handle all matrix-style questions where multiple items are rated on the same scale.
-
-    Parameters:
-    df (pandas.DataFrame): The input dataframe
-    likert_mapping (dict): Mapping for Likert scale values
-    frequency_mapping (dict): Mapping for frequency scale values
-
-    Returns:
-    dict: Dictionary with each item as a key and its processed values as values
-    """
-    results = {}
-    for col in df.columns:
-        # Extract the specific item name (e.g., "Desktop Computer" from the full column name)
-        item_name = col.split('[')[-1].strip(']') if '[' in col else col
-
-        # Process the values using the appropriate mapping
-        if any(val in df[col].fillna('').values for val in likert_mapping.keys()):
-            results[item_name] = map_values(df[col], likert_mapping)
-        elif any(val in df[col].fillna('').values for val in frequency_mapping.keys()):
-            results[item_name] = map_values(df[col], frequency_mapping)
-        else:
-            results[item_name] = df[col]
-
-    return results
-
 def raname_columns(df, mapping_dict):
     renamed_df = df.copy()
 
@@ -73,15 +46,6 @@ def raname_columns(df, mapping_dict):
 def replace_likert_values(df):
     cleaned_df = df.copy()
 
-    # Remove unnecessary columns
-    # cleaned_df = cleaned_df.drop(['Timestamp', '1. name'], axis=1)
-
-    # Handle the device familiarity matrix question
-    # todo: do we need this
-    # todo: handle ; or , separated values
-    matrix_vals = handle_matrix_questions(cleaned_df)
-
-
     # Iterate through the columns in the demographics DataFrame and Apply value mappings to relevant columns
     for col in cleaned_df.columns:
         if cleaned_df[col].dtype == 'object':
@@ -91,8 +55,6 @@ def replace_likert_values(df):
             elif any(val in col_values for val in frequency_mapping.keys()):
                 cleaned_df[col] = map_values(cleaned_df[col], frequency_mapping)
 
-    # Combine demographic data with device familiarity data
-    # final_df = pd.concat([cleaned_df], axis=1)
     return cleaned_df
 
 def generate_quality_report(df):
