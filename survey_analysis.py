@@ -43,6 +43,31 @@ def raname_columns(df, mapping_dict):
 
     return renamed_df
 
+def add_new_colums(input_df: pd.DataFrame, column_name: str) -> pd.DataFrame:
+    """
+    Adds a new column to the DataFrame and returns the updated DataFrame.
+
+    Args:
+        df (pd.DataFrame): The input DataFrame to which the column will be added.
+        column_name (str): The name of the new column to add.
+
+    Returns:
+        pd.DataFrame: The updated DataFrame with the new column added.
+    """
+    df = input_df.copy()
+
+    all_options = df[column_name].dropna().str.split(';').explode()
+
+    unique_options = sorted(all_options.unique())
+    
+    for option in unique_options:
+        new_column_name = f"{column_name}_{option.strip()}"
+        df[new_column_name] = df[column_name].apply(
+            lambda x: 1 if pd.notna(x) and option in x.split(';') else 0
+            )
+    
+    return df
+
 def replace_likert_values(df):
     cleaned_df = df.copy()
 
@@ -97,6 +122,15 @@ if __name__ == "__main__":
         qn_cleaned_data.to_excel(writer, sheet_name='Quantitative_Cleaned', index=False)
         # quality_df.to_excel(writer, sheet_name='Quality_Report', index=False)
 
+    demographic_cleaned_df = pd.read_excel(input_file, sheet_name='Demographic_Cleaned')
+    demographic_cleaned_df2 = add_new_colums(demographic_cleaned_df, "languages")
+    demographic_cleaned_df3 = add_new_colums(demographic_cleaned_df2, "devices_used")
+    demographic_cleaned_df4 = add_new_colums(demographic_cleaned_df3, "communication_targets")
+
+    with pd.ExcelWriter(input_file, mode='a', engine='openpyxl', if_sheet_exists='replace') as writer:
+        demographic_cleaned_df4.to_excel(writer, sheet_name='Demographic_Cleaned_v2', index=False)
+
+
     quantitative_cleaned_df = pd.read_excel(input_file, sheet_name='Quantitative_Cleaned')
     likert_df = replace_likert_values(quantitative_cleaned_df)
 
@@ -106,3 +140,4 @@ if __name__ == "__main__":
     # quality_report = generate_quality_report(cleaned_data)
     # quality_df = pd.DataFrame(quality_report.items(), columns=['Metric', 'Value'])
     # print("\nQuality report generated.")
+
