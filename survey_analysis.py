@@ -23,6 +23,15 @@ frequency_mapping = {
     'Not applicable': np.nan
 }
 
+study_major_mapping = {
+    'Arts': 1,
+    'Commerce': 2,
+    'CS/IT': 3,
+    'Other_Engg': 4,
+    'Medical': 5,
+    'General_Science': 6
+}
+
 # Define a function to map values based on the provided mappings
 def map_values(column, mappings):
     return column.map(mappings)
