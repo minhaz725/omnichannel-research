@@ -5,4 +5,4 @@
 .vs/omnichannel-research/v17/.wsuo
 .vs/VSWorkspaceState.json
 .vs/slnx.sqlite
-survey_env/
+.venv
